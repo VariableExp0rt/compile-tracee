@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: tracee-falcosidekick
+  namespace: security
+spec:
+  imagePullSecrets:
+  - name: gcr-json-key
+  containers:
+  - name: tracee
+    image: tracee
+    args:
+    - "--webhook http://127.0.0.1:2801" 
+    - "--webhook-template /app/tracee/templates/falcosidekick.tmpl" 
+    - "--webhook-content-type application/json"
+    securityContext:
+      capabilities:
+        drop:
+        - all
+        add: ["IPC_LOCK", "SYS_ADMIN", "SYS_RESOURCE"]
+    volumeMounts:
+    - name: tmp-tracee
+      mountPath: /tmp/tracee
+    - name: usr-src
+      mountPath: /usr/src
+      readOnly: true
+    - name: lib-modules
+      mountPath: /lib/modules/
+      readOnly: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 300Mi
+      requests:
+        cpu: 350m
+        memory: 50Mi
+  - name: falcosidekick
+    image: falcosidekick
+    args: ["-c", "/app/falcosidekick.yaml"]
+    securityContext:
+      runAsUser: 1000
+    resources:
+      limits:
+        cpu: 500m
+        memory: 300Mi
+      requests:
+        cpu: 350m
+        memory: 50Mi
+  tolerations:
+  - effect: NoSchedule
+    operator: Exists
+  - effect: NoExecute
+    operator: Exists
+  volumes:
+  - hostPath:
+      path: /tmp/tracee
+    name: tmp-tracee
+  - hostPath:
+      path: /usr/src
+    name: usr-src
+  - hostPath:
+      path: /lib/modules
+    name: lib-modules
